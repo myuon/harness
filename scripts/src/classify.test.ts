@@ -216,7 +216,7 @@ describe("classifySkills - profiles", () => {
       const profiles = {
         "my-profile": {
           condition: "always",
-          skills: [{ name: "skill-a", source: "gh:owner/repo" }],
+          skills: { "skill-a": { source: "gh:owner/repo" } },
         },
       };
       const profileDecisions = { "my-profile": { apply: true } };
@@ -231,7 +231,7 @@ describe("classifySkills - profiles", () => {
       const profiles = {
         "my-profile": {
           condition: "always",
-          skills: [{ name: "skill-a", source: "gh:owner/repo" }],
+          skills: { "skill-a": { source: "gh:owner/repo" } },
         },
       };
       const profileDecisions = { "my-profile": { apply: true } };
@@ -249,10 +249,10 @@ describe("classifySkills - profiles", () => {
       const profiles = {
         "my-profile": {
           condition: "always",
-          skills: [
-            { name: "skill-a", source: "gh:owner/repo" },
-            { name: "skill-b", source: "gh:owner/repo" },
-          ],
+          skills: {
+            "skill-a": { source: "gh:owner/repo" },
+            "skill-b": { source: "gh:owner/repo" },
+          },
         },
       };
       const profileDecisions = { "my-profile": { apply: false, reason: "not needed" } };
@@ -270,7 +270,7 @@ describe("classifySkills - profiles", () => {
       const profiles = {
         "my-profile": {
           condition: "always",
-          skills: [{ name: "skill-a", source: "gh:owner/repo" }],
+          skills: { "skill-a": { source: "gh:owner/repo" } },
         },
       };
       const result = classifySkills(noSkills, noDecisions, empty, empty, profiles);
@@ -283,7 +283,7 @@ describe("classifySkills - profiles", () => {
       const profiles = {
         "my-profile": {
           condition: "always",
-          skills: [{ name: "skill-a", source: "gh:owner/repo" }],
+          skills: { "skill-a": { source: "gh:owner/repo" } },
         },
       };
       const localInstalled = new Set(["skill-a"]);
@@ -299,10 +299,10 @@ describe("classifySkills - profiles", () => {
       const profiles = {
         "ts-profile": {
           condition: "use when working with TypeScript",
-          skills: [
-            { name: "skill-a", source: "gh:owner/repo" },
-            { name: "skill-b", source: "gh:owner/repo2" },
-          ],
+          skills: {
+            "skill-a": { source: "gh:owner/repo" },
+            "skill-b": { source: "gh:owner/repo2" },
+          },
         },
       };
       const result = classifySkills(noSkills, noDecisions, empty, empty, profiles);
@@ -326,7 +326,7 @@ describe("classifySkills - profiles", () => {
       const profiles = {
         "my-profile": {
           condition: "always",
-          skills: [{ name: "global-skill", source: "gh:owner/repo", scope: "global" }],
+          skills: { "global-skill": { source: "gh:owner/repo", scope: "global" } },
         },
       };
       const globalInstalled = new Set(["global-skill"]);
@@ -340,7 +340,7 @@ describe("classifySkills - profiles", () => {
       const profiles = {
         "my-profile": {
           condition: "always",
-          skills: [{ name: "global-skill", source: "gh:owner/repo", scope: "global" }],
+          skills: { "global-skill": { source: "gh:owner/repo", scope: "global" } },
         },
       };
       const localInstalled = new Set(["global-skill"]);

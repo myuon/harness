@@ -101,8 +101,8 @@ async function main(): Promise<void> {
 
   const decisionsPath = join(process.cwd(), ".harness-decisions.json");
 
-  type ProfileSkillSpec = { name: string; source: string; scope?: string };
-  type ProfileSpec = { condition?: string; skills?: ProfileSkillSpec[] };
+  type ProfileSkillSpec = { source: string; scope?: string };
+  type ProfileSpec = { condition?: string; skills?: Record<string, ProfileSkillSpec> };
   let manifest: {
     skills?: Record<string, { source: string; scope?: string; condition?: string }>;
     profiles?: Record<string, ProfileSpec>;

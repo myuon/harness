@@ -10,14 +10,13 @@ export type SkillDecision = {
 };
 
 export type ProfileSkillSpec = {
-  name: string;
   source: string;
   scope?: string;
 };
 
 export type ProfileSpec = {
   condition?: string;
-  skills?: ProfileSkillSpec[];
+  skills?: Record<string, ProfileSkillSpec>;
 };
 
 export type ProfileDecision = {
@@ -95,7 +94,7 @@ export function classifySkills(
     const resolvedProfileDecisions = profileDecisions ?? {};
 
     for (const [profileName, profileSpec] of Object.entries(profiles)) {
-      const profileSkills = profileSpec.skills ?? [];
+      const profileSkills = Object.entries(profileSpec.skills ?? {});
       if (profileSkills.length === 0) continue;
 
       const condition = profileSpec.condition ?? "always";
@@ -103,32 +102,32 @@ export function classifySkills(
 
       if (decision) {
         if (decision.apply === false) {
-          for (const skillSpec of profileSkills) {
-            skippedByDecision.push({ name: skillSpec.name, reason: decision.reason ?? "" });
+          for (const [skillName] of profileSkills) {
+            skippedByDecision.push({ name: skillName, reason: decision.reason ?? "" });
           }
         } else if (decision.apply === true) {
-          for (const skillSpec of profileSkills) {
+          for (const [skillName, skillSpec] of profileSkills) {
             const scope = skillSpec.scope ?? "project";
             const isGlobal = scope === "global";
             const installedSet = isGlobal ? globalInstalledSet : localInstalledSet;
-            const installed = installedSet.has(skillSpec.name);
+            const installed = installedSet.has(skillName);
             if (installed) {
-              alreadyInstalled.push({ name: skillSpec.name, source: skillSpec.source, scope });
+              alreadyInstalled.push({ name: skillName, source: skillSpec.source, scope });
             } else {
-              toInstall.push({ name: skillSpec.name, source: skillSpec.source, scope });
+              toInstall.push({ name: skillName, source: skillSpec.source, scope });
             }
           }
         }
       } else if (condition === "always") {
-        for (const skillSpec of profileSkills) {
+        for (const [skillName, skillSpec] of profileSkills) {
           const scope = skillSpec.scope ?? "project";
           const isGlobal = scope === "global";
           const installedSet = isGlobal ? globalInstalledSet : localInstalledSet;
-          const installed = installedSet.has(skillSpec.name);
+          const installed = installedSet.has(skillName);
           if (installed) {
-            alreadyInstalled.push({ name: skillSpec.name, source: skillSpec.source, scope });
+            alreadyInstalled.push({ name: skillName, source: skillSpec.source, scope });
           } else {
-            toInstall.push({ name: skillSpec.name, source: skillSpec.source, scope });
+            toInstall.push({ name: skillName, source: skillSpec.source, scope });
           }
         }
       } else {
@@ -136,7 +135,7 @@ export function classifySkills(
           type: "profile",
           profileName,
           condition,
-          skills: profileSkills.map(({ name, source }) => ({ name, source })),
+          skills: profileSkills.map(([name, { source }]) => ({ name, source })),
         });
       }
     }
