@@ -113,6 +113,51 @@ npx skills add <source> --skill <name> -y
 
 なお、`.claude/settings.json` のフック構造は Claude Code の仕様に従うこと。同一の matcher エントリがすでに存在する場合は、その `hooks` 配列に追記する。
 
+#### 5-4. Settings の適用
+
+**古い harness 管理 settings のクリーンアップ:**
+
+`.claude/settings.json` を読み込み、以下の処理を行う:
+
+1. `customInstructions` フィールドに `<!-- harness:start:<profile-name> -->` ... `<!-- harness:end:<profile-name> -->` マーカーが含まれる場合、今回 `apply: true` でないプロファイルのマーカーブロックを削除する
+2. `allowedTools` フィールドに含まれるツールのうち、今回 `apply: true` でないプロファイルの `settings.allowedTools` 由来のもの（判断記録で追跡）を削除する
+
+**Settings の適用:**
+
+`apply: true` と判断された各プロファイルのうち `settings` フィールドを持つものについて以下を行う:
+
+1. `.claude/settings.json` を読み込む（存在しない場合は `{}` として扱う）
+2. 各 settings キーについて:
+   - **`allowedTools`**: 配列をマージする（union、重複なし）。新たに追加したツールを判断記録の `profiles.<name>.addedTools` に記録する
+   - **`customInstructions`**: すでに値が存在する場合は改行で区切って追記する。追記するテキストは以下のマーカーで囲む:
+     ```
+     <!-- harness:start:<profile-name> -->
+     <追記するテキスト>
+     <!-- harness:end:<profile-name> -->
+     ```
+     すでに同じプロファイルのマーカーブロックが存在する場合は上書き（削除して再追記）する
+   - **その他のキー**: 値を直接セットする（上書き）。判断記録の `profiles.<name>.setSettings` に `{ key: value }` として記録する
+3. 更新した内容を `.claude/settings.json` に書き込む
+
+**判断記録への追記:**
+
+settings 適用の結果を `.harness-decisions.json` の対応するプロファイルエントリに追記する:
+
+```json
+{
+  "decisions": {
+    "profiles": {
+      "react": {
+        "apply": true,
+        "reason": "package.json に react@19 あり",
+        "addedTools": ["Edit", "Write", "Bash"],
+        "setSettings": {}
+      }
+    }
+  }
+}
+```
+
 ### 6. 判断記録の書き込み
 
 更新した判断記録をプロジェクトルートの `.harness-decisions.json` に書き込む。
@@ -145,12 +190,13 @@ npx skills add <source> --skill <name> -y
 - **スキップ**: `install: false` と判断したスキル（reason 付き）
 - **判断済み（変更なし）**: すでに `.harness-decisions.json` に記録されていたためスキップしたスキル
 
-**プロファイル/フック:**
+**プロファイル/フック/Settings:**
 
-- **適用済みプロファイル**: 今回 `apply: true` と判断したプロファイル（reason 付き、適用したフック数も表示）
+- **適用済みプロファイル**: 今回 `apply: true` と判断したプロファイル（reason 付き、適用したフック数と settings キー一覧も表示）
 - **スキップしたプロファイル**: `apply: false` と判断したプロファイル（reason 付き）
 - **判断済み（変更なし）**: すでに `.harness-decisions.json` に記録されていたためスキップしたプロファイル
 - **削除した古いフック**: `_managedBy: "harness"` が付いていたが今回のプロファイルに含まれなかったため削除したフック（あれば表示）
+- **クリーンアップした古い settings**: 今回 `apply: false` となったプロファイルの settings（マーカーブロック削除、allowedTools 削除）（あれば表示）
 
 ## 注意事項
 

@@ -110,6 +110,75 @@ manifest は `~/.config/harness/manifest.json` に配置します。
 | `hooks[].event` | フックを発火するイベント（例: `PostToolUse`, `PreToolUse`） |
 | `hooks[].matcher` | フックを適用するツール名（例: `Edit`, `Bash`） |
 | `hooks[].command` | 実行するコマンド |
+| `settings` | `.claude/settings.json` に適用する設定のキー/バリューマップ（省略可） |
+| `settings.allowedTools` | 許可するツール名の配列（既存値とマージ） |
+| `settings.customInstructions` | カスタム指示文字列（既存値に追記、マーカーで管理） |
+
+## Settings 管理
+
+### プロファイルと settings
+
+プロファイルに `settings` フィールドを追加することで、`.claude/settings.json` の設定をプロファイル単位で宣言的に管理できます。
+
+```json
+{
+  "profiles": {
+    "react": {
+      "condition": "React を使っているプロジェクト",
+      "hooks": [
+        {
+          "event": "PostToolUse",
+          "matcher": "Edit",
+          "command": "npx eslint --fix $CLAUDE_FILE_PATH"
+        }
+      ],
+      "settings": {
+        "allowedTools": ["Edit", "Write", "Bash"],
+        "customInstructions": "React のベストプラクティスに従うこと"
+      }
+    },
+    "python": {
+      "condition": "Python プロジェクト",
+      "settings": {
+        "allowedTools": ["Edit", "Write", "Bash"],
+        "customInstructions": "PEP 8 に従うこと"
+      }
+    }
+  }
+}
+```
+
+### `allowedTools` のマージ
+
+`allowedTools` は配列のマージ（union）で処理されます。既存の値を上書きするのではなく、重複なしで追加されます。
+
+例えば既存の `allowedTools` が `["Read"]` の場合、プロファイルの `allowedTools: ["Edit", "Write"]` を適用すると `["Read", "Edit", "Write"]` になります。
+
+harness が追加したツールは `.harness-decisions.json` の `profiles.<name>.addedTools` で追跡されます。
+
+### `customInstructions` のマーカー管理
+
+`customInstructions` はマーカーで囲んで追記されます:
+
+```
+既存の customInstructions の内容
+<!-- harness:start:react -->
+React のベストプラクティスに従うこと
+<!-- harness:end:react -->
+```
+
+これにより、どのプロファイルが追記したテキストかを識別できます。`/harness:install` 再実行時にプロファイルの条件が `apply: false` に変わった場合、そのマーカーブロックは自動的に削除されます。
+
+### その他の settings キー
+
+`allowedTools` と `customInstructions` 以外のキーは値を直接セット（上書き）します。適用した内容は `.harness-decisions.json` の `profiles.<name>.setSettings` に記録されます。
+
+### settings のクリーンアップ
+
+`/harness:install` を再実行すると、`apply: false` となったプロファイルの settings が自動的にクリーンアップされます:
+
+- `customInstructions`: そのプロファイルのマーカーブロックを削除
+- `allowedTools`: そのプロファイルが追加したツールを削除（他プロファイルや手動追加のツールは保持）
 
 ## 判断記録
 

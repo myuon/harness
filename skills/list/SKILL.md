@@ -44,9 +44,17 @@ manifest の `profiles` セクションを以下の形式で表示する:
     - <event> / <matcher>: <command>
     - <event> / <matcher>: <command>
     ...
+  - settings: <key 数> 件  ← settings フィールドがある場合のみ表示
+    - <key>: <値の概要>
+    ...
 ```
 
 各フックはイベント・matcher・コマンドをすべて表示すること。
+
+`settings` フィールドが存在する場合は各キーを表示する。値の表示は以下のルールに従う:
+- `allowedTools`: 配列の要素を列挙（例: `["Edit", "Write", "Bash"]`）
+- `customInstructions`: 先頭 50 文字 + `...`（長い場合）
+- その他: 値をそのまま表示
 
 プロファイルが登録されていない場合は「プロファイルは登録されていません」と表示する。
 
