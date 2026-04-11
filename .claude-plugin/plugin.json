@@ -1,6 +1,6 @@
 {
   "name": "harness",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "宣言的ハーネス管理ツール — AI エージェントの skills と hooks をプロジェクトごとに管理",
   "author": {
     "name": "myuon"
