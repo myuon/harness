@@ -45,20 +45,24 @@ async function getInstalledSkills(globalFlag) {
   }
 }
 
-async function installSkill(name, source, scope) {
+async function installSkillGroup({ source, scope, names }) {
   const isGlobal = scope === "global";
-  const args = ["skills", "add", source, "--skill", name, "-y"];
+  const args = ["skills", "add", source];
+  for (const name of names) {
+    args.push("--skill", name);
+  }
+  args.push("-y");
   if (isGlobal) {
     args.push("-g");
   }
   const result = await runCommand("npx", args);
-  return {
+  return names.map((name) => ({
     name,
     source,
     scope: scope ?? "project",
     result: result.ok ? "success" : "error",
     ...(result.ok ? {} : { error: result.error }),
-  };
+  }));
 }
 
 async function main() {
@@ -134,9 +138,20 @@ async function main() {
     }
   }
 
-  const installResults = await Promise.all(
-    toInstall.map(({ name, source, scope }) => installSkill(name, source, scope))
+  // Group toInstall by source+scope to minimize repository clones
+  const groupMap = new Map();
+  for (const { name, source, scope } of toInstall) {
+    const key = `${source}\0${scope ?? "project"}`;
+    if (!groupMap.has(key)) {
+      groupMap.set(key, { source, scope: scope ?? "project", names: [] });
+    }
+    groupMap.get(key).names.push(name);
+  }
+
+  const groupResults = await Promise.all(
+    Array.from(groupMap.values()).map((group) => installSkillGroup(group))
   );
+  const installResults = groupResults.flat();
 
   const installed = installResults.filter((r) => r.result === "success");
   const errors = installResults
