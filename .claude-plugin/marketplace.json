@@ -1,7 +1,5 @@
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "myuon-harness",
-  "description": "宣言的ハーネス管理ツール — AI エージェントの skills と hooks をプロジェクトごとに管理",
   "owner": {
     "name": "myuon"
   },

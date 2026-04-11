@@ -1,31 +1,10 @@
 {
   "name": "harness",
+  "version": "0.1.0",
   "description": "宣言的ハーネス管理ツール — AI エージェントの skills と hooks をプロジェクトごとに管理",
-  "skills": [
-    {
-      "name": "install",
-      "description": "manifest を読み、プロジェクトの実態を見て condition を評価し、必要な skills と hooks を適用",
-      "path": "skills/install/SKILL.md"
-    },
-    {
-      "name": "try",
-      "description": "GitHub から SKILL.md を fetch して今のセッションで読むだけ。インストールしない",
-      "path": "skills/try/SKILL.md"
-    },
-    {
-      "name": "add",
-      "description": "manifest にスキルを追加。condition はエージェントが自動提案",
-      "path": "skills/add/SKILL.md"
-    },
-    {
-      "name": "list",
-      "description": "manifest の内容を表示",
-      "path": "skills/list/SKILL.md"
-    },
-    {
-      "name": "sync",
-      "description": "インストール済みスキルと manifest を比較し、未登録のものがあれば追加を提案",
-      "path": "skills/sync/SKILL.md"
-    }
-  ]
+  "author": {
+    "name": "myuon"
+  },
+  "keywords": ["harness", "skills", "hooks", "manifest"],
+  "license": "MIT"
 }
