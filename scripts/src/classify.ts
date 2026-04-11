@@ -9,10 +9,41 @@ export type SkillDecision = {
   reason?: string;
 };
 
+export type ProfileSkillSpec = {
+  name: string;
+  source: string;
+  scope?: string;
+};
+
+export type ProfileSpec = {
+  condition?: string;
+  skills?: ProfileSkillSpec[];
+};
+
+export type ProfileDecision = {
+  apply: boolean;
+  reason?: string;
+};
+
+export type NeedsEvaluationSkill = {
+  name: string;
+  source: string;
+  condition: string;
+};
+
+export type NeedsEvaluationProfile = {
+  type: "profile";
+  profileName: string;
+  condition: string;
+  skills: { name: string; source: string }[];
+};
+
+export type NeedsEvaluationEntry = NeedsEvaluationSkill | NeedsEvaluationProfile;
+
 export type ClassifiedSkills = {
   alreadyInstalled: { name: string; source: string; scope: string }[];
   toInstall: { name: string; source: string; scope: string }[];
-  needsEvaluation: { name: string; source: string; condition: string }[];
+  needsEvaluation: NeedsEvaluationEntry[];
   skippedByDecision: { name: string; reason: string }[];
 };
 
@@ -20,7 +51,9 @@ export function classifySkills(
   skills: Record<string, SkillSpec>,
   skillDecisions: Record<string, SkillDecision>,
   globalInstalledSet: Set<string>,
-  localInstalledSet: Set<string>
+  localInstalledSet: Set<string>,
+  profiles?: Record<string, ProfileSpec>,
+  profileDecisions?: Record<string, ProfileDecision>
 ): ClassifiedSkills {
   const alreadyInstalled: ClassifiedSkills["alreadyInstalled"] = [];
   const toInstall: ClassifiedSkills["toInstall"] = [];
@@ -55,6 +88,57 @@ export function classifySkills(
       }
     } else {
       needsEvaluation.push({ name, source, condition });
+    }
+  }
+
+  if (profiles) {
+    const resolvedProfileDecisions = profileDecisions ?? {};
+
+    for (const [profileName, profileSpec] of Object.entries(profiles)) {
+      const profileSkills = profileSpec.skills ?? [];
+      if (profileSkills.length === 0) continue;
+
+      const condition = profileSpec.condition ?? "always";
+      const decision = resolvedProfileDecisions[profileName];
+
+      if (decision) {
+        if (decision.apply === false) {
+          for (const skillSpec of profileSkills) {
+            skippedByDecision.push({ name: skillSpec.name, reason: decision.reason ?? "" });
+          }
+        } else if (decision.apply === true) {
+          for (const skillSpec of profileSkills) {
+            const scope = skillSpec.scope ?? "project";
+            const isGlobal = scope === "global";
+            const installedSet = isGlobal ? globalInstalledSet : localInstalledSet;
+            const installed = installedSet.has(skillSpec.name);
+            if (installed) {
+              alreadyInstalled.push({ name: skillSpec.name, source: skillSpec.source, scope });
+            } else {
+              toInstall.push({ name: skillSpec.name, source: skillSpec.source, scope });
+            }
+          }
+        }
+      } else if (condition === "always") {
+        for (const skillSpec of profileSkills) {
+          const scope = skillSpec.scope ?? "project";
+          const isGlobal = scope === "global";
+          const installedSet = isGlobal ? globalInstalledSet : localInstalledSet;
+          const installed = installedSet.has(skillSpec.name);
+          if (installed) {
+            alreadyInstalled.push({ name: skillSpec.name, source: skillSpec.source, scope });
+          } else {
+            toInstall.push({ name: skillSpec.name, source: skillSpec.source, scope });
+          }
+        }
+      } else {
+        needsEvaluation.push({
+          type: "profile",
+          profileName,
+          condition,
+          skills: profileSkills.map(({ name, source }) => ({ name, source })),
+        });
+      }
     }
   }
 

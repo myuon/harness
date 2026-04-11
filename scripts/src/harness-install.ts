@@ -101,7 +101,12 @@ async function main(): Promise<void> {
 
   const decisionsPath = join(process.cwd(), ".harness-decisions.json");
 
-  let manifest: { skills?: Record<string, { source: string; scope?: string; condition?: string }> } | null;
+  type ProfileSkillSpec = { name: string; source: string; scope?: string };
+  type ProfileSpec = { condition?: string; skills?: ProfileSkillSpec[] };
+  let manifest: {
+    skills?: Record<string, { source: string; scope?: string; condition?: string }>;
+    profiles?: Record<string, ProfileSpec>;
+  } | null;
   if (isUrl) {
     try {
       manifest = (await fetchManifestFromUrl(urlArg)) as typeof manifest;
@@ -135,9 +140,13 @@ async function main(): Promise<void> {
   }
 
   const decisions = await readJsonFile<{
-    decisions?: { skills?: Record<string, { install: boolean; reason?: string }> };
+    decisions?: {
+      skills?: Record<string, { install: boolean; reason?: string }>;
+      profiles?: Record<string, { apply: boolean; reason?: string }>;
+    };
   }>(decisionsPath, { decisions: { skills: {}, profiles: {} } } as never);
   const skillDecisions = decisions?.decisions?.skills ?? {};
+  const profileDecisions = decisions?.decisions?.profiles ?? {};
 
   const [globalInstalled, localInstalled] = await Promise.all([
     getInstalledSkills(true),
@@ -148,9 +157,10 @@ async function main(): Promise<void> {
   const localInstalledSet = new Set(localInstalled);
 
   const skills = manifest!.skills ?? {};
+  const profiles = manifest!.profiles ?? {};
 
   const { alreadyInstalled, toInstall, needsEvaluation, skippedByDecision } =
-    classifySkills(skills, skillDecisions, globalInstalledSet, localInstalledSet);
+    classifySkills(skills, skillDecisions, globalInstalledSet, localInstalledSet, profiles, profileDecisions);
 
   const groups = groupBySource(toInstall);
 

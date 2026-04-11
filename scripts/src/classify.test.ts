@@ -203,6 +203,156 @@ describe("classifySkills", () => {
 });
 
 // ---------------------------------------------------------------------------
+// classifySkills with profiles
+// ---------------------------------------------------------------------------
+
+describe("classifySkills - profiles", () => {
+  const empty = new Set<string>();
+  const noSkills = {};
+  const noDecisions = {};
+
+  describe("decision: apply: true", () => {
+    it("スキル未インストール → toInstall", () => {
+      const profiles = {
+        "my-profile": {
+          condition: "always",
+          skills: [{ name: "skill-a", source: "gh:owner/repo" }],
+        },
+      };
+      const profileDecisions = { "my-profile": { apply: true } };
+      const result = classifySkills(noSkills, noDecisions, empty, empty, profiles, profileDecisions);
+      expect(result.toInstall).toEqual([
+        { name: "skill-a", source: "gh:owner/repo", scope: "project" },
+      ]);
+      expect(result.alreadyInstalled).toHaveLength(0);
+    });
+
+    it("スキルインストール済み → alreadyInstalled", () => {
+      const profiles = {
+        "my-profile": {
+          condition: "always",
+          skills: [{ name: "skill-a", source: "gh:owner/repo" }],
+        },
+      };
+      const profileDecisions = { "my-profile": { apply: true } };
+      const localInstalled = new Set(["skill-a"]);
+      const result = classifySkills(noSkills, noDecisions, empty, localInstalled, profiles, profileDecisions);
+      expect(result.alreadyInstalled).toEqual([
+        { name: "skill-a", source: "gh:owner/repo", scope: "project" },
+      ]);
+      expect(result.toInstall).toHaveLength(0);
+    });
+  });
+
+  describe("decision: apply: false", () => {
+    it("profile 内の全スキルが skippedByDecision に入る", () => {
+      const profiles = {
+        "my-profile": {
+          condition: "always",
+          skills: [
+            { name: "skill-a", source: "gh:owner/repo" },
+            { name: "skill-b", source: "gh:owner/repo" },
+          ],
+        },
+      };
+      const profileDecisions = { "my-profile": { apply: false, reason: "not needed" } };
+      const result = classifySkills(noSkills, noDecisions, empty, empty, profiles, profileDecisions);
+      expect(result.skippedByDecision).toEqual([
+        { name: "skill-a", reason: "not needed" },
+        { name: "skill-b", reason: "not needed" },
+      ]);
+      expect(result.toInstall).toHaveLength(0);
+    });
+  });
+
+  describe("decision なし + condition: always", () => {
+    it("スキル未インストール → toInstall", () => {
+      const profiles = {
+        "my-profile": {
+          condition: "always",
+          skills: [{ name: "skill-a", source: "gh:owner/repo" }],
+        },
+      };
+      const result = classifySkills(noSkills, noDecisions, empty, empty, profiles);
+      expect(result.toInstall).toEqual([
+        { name: "skill-a", source: "gh:owner/repo", scope: "project" },
+      ]);
+    });
+
+    it("スキルインストール済み → alreadyInstalled", () => {
+      const profiles = {
+        "my-profile": {
+          condition: "always",
+          skills: [{ name: "skill-a", source: "gh:owner/repo" }],
+        },
+      };
+      const localInstalled = new Set(["skill-a"]);
+      const result = classifySkills(noSkills, noDecisions, empty, localInstalled, profiles);
+      expect(result.alreadyInstalled).toEqual([
+        { name: "skill-a", source: "gh:owner/repo", scope: "project" },
+      ]);
+    });
+  });
+
+  describe("decision なし + condition: 自然言語", () => {
+    it("profile 単位で needsEvaluation に入る", () => {
+      const profiles = {
+        "ts-profile": {
+          condition: "use when working with TypeScript",
+          skills: [
+            { name: "skill-a", source: "gh:owner/repo" },
+            { name: "skill-b", source: "gh:owner/repo2" },
+          ],
+        },
+      };
+      const result = classifySkills(noSkills, noDecisions, empty, empty, profiles);
+      expect(result.needsEvaluation).toEqual([
+        {
+          type: "profile",
+          profileName: "ts-profile",
+          condition: "use when working with TypeScript",
+          skills: [
+            { name: "skill-a", source: "gh:owner/repo" },
+            { name: "skill-b", source: "gh:owner/repo2" },
+          ],
+        },
+      ]);
+      expect(result.toInstall).toHaveLength(0);
+    });
+  });
+
+  describe("profile の skills に scope 指定がある場合", () => {
+    it("scope: global は globalInstalledSet を参照する", () => {
+      const profiles = {
+        "my-profile": {
+          condition: "always",
+          skills: [{ name: "global-skill", source: "gh:owner/repo", scope: "global" }],
+        },
+      };
+      const globalInstalled = new Set(["global-skill"]);
+      const result = classifySkills(noSkills, noDecisions, globalInstalled, empty, profiles);
+      expect(result.alreadyInstalled).toEqual([
+        { name: "global-skill", source: "gh:owner/repo", scope: "global" },
+      ]);
+    });
+
+    it("scope: global + localInstalledSet のみにあっても未インストール扱い", () => {
+      const profiles = {
+        "my-profile": {
+          condition: "always",
+          skills: [{ name: "global-skill", source: "gh:owner/repo", scope: "global" }],
+        },
+      };
+      const localInstalled = new Set(["global-skill"]);
+      const result = classifySkills(noSkills, noDecisions, empty, localInstalled, profiles);
+      expect(result.toInstall).toEqual([
+        { name: "global-skill", source: "gh:owner/repo", scope: "global" },
+      ]);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // groupBySource
 // ---------------------------------------------------------------------------
 
