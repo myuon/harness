@@ -41,6 +41,7 @@ claude plugin install harness@myuon-harness
 harness の新しいバージョンがリリースされたら、以下のコマンドで更新できます：
 
 ```bash
+claude plugin marketplace update myuon-harness
 claude plugin update harness@myuon-harness
 ```
 
