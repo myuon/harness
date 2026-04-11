@@ -59,11 +59,59 @@ npx skills add <source> --skill <name> -y
 
 `source` と `name` はマニフェストから取得する（例: `source: "myuon/agent-skills"`, `name: "commit"`）。
 
-### 5. プロファイル/フックの評価
+### 5. プロファイル/フックの評価と適用
 
-<!-- TODO: Phase 1 では profiles の評価はスキップする。将来的に profiles の条件評価とフックの適用を実装する。 -->
+マニフェストの `profiles` セクションに含まれる各プロファイルについて以下を実行する。
 
-現時点では profiles の処理は行わない。
+#### 5-1. 条件評価
+
+**すでに判断記録に存在するプロファイルはスキップする**（既存の判断記録は上書きしない）。
+
+条件評価はスキルと同様の方法で行う（Step 3 参照）:
+
+- `condition: "always"` → `apply: true`, `reason: "always"`
+- その他の condition 文字列 → プロジェクトの実態を調べて評価する
+
+評価結果を `apply: true/false` と具体的な `reason` とともに記録する。
+
+#### 5-2. 古いフックの削除（クリーンアップ）
+
+`.claude/settings.json` を読み込み（存在しない場合は空として扱う）、`"_managedBy": "harness"` が付いているフックのうち、今回 `apply: true` となったプロファイルのいずれにも含まれないフックを削除する。
+
+これにより、プロファイルの適用条件が変わった際に古いフックが残り続けることを防ぐ。
+
+#### 5-3. フックの適用
+
+`apply: true` と判断された各プロファイルについて以下を行う:
+
+1. `.claude/settings.json` を読み込む（存在しない場合は `{}` として扱い、後で新規作成する）
+2. プロファイルの `hooks` 配列の各フックについて:
+   - 同じイベント・matcher・コマンドを持つフックがすでに存在する場合はスキップ（重複追加しない）
+   - 存在しない場合は、フックエントリに `"_managedBy": "harness"` フィールドを追加して、対応するイベント配列に追加する
+3. 更新した内容を `.claude/settings.json` に書き込む
+
+**`.claude/settings.json` のフックフォーマット:**
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx eslint --fix $CLAUDE_FILE_PATH",
+            "_managedBy": "harness"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+なお、`.claude/settings.json` のフック構造は Claude Code の仕様に従うこと。同一の matcher エントリがすでに存在する場合は、その `hooks` 配列に追記する。
 
 ### 6. 判断記録の書き込み
 
@@ -79,18 +127,30 @@ npx skills add <source> --skill <name> -y
       "react-no-useeffect": { "install": true, "reason": "package.json に react@19 あり" },
       "agent-browser": { "install": false, "reason": "CLI ツールのため画面なし" }
     },
-    "profiles": {}
+    "profiles": {
+      "react": { "apply": true, "reason": "package.json に react@19 あり" },
+      "node": { "apply": false, "reason": "Rust プロジェクトのため対象外" }
+    }
   }
 }
 ```
 
 ### 7. サマリーの表示
 
-以下の3区分でユーザーに結果を表示する:
+以下の区分でユーザーに結果を表示する:
+
+**スキル:**
 
 - **インストール済み**: 今回インストールしたスキル（reason 付き）
 - **スキップ**: `install: false` と判断したスキル（reason 付き）
 - **判断済み（変更なし）**: すでに `.harness-decisions.json` に記録されていたためスキップしたスキル
+
+**プロファイル/フック:**
+
+- **適用済みプロファイル**: 今回 `apply: true` と判断したプロファイル（reason 付き、適用したフック数も表示）
+- **スキップしたプロファイル**: `apply: false` と判断したプロファイル（reason 付き）
+- **判断済み（変更なし）**: すでに `.harness-decisions.json` に記録されていたためスキップしたプロファイル
+- **削除した古いフック**: `_managedBy: "harness"` が付いていたが今回のプロファイルに含まれなかったため削除したフック（あれば表示）
 
 ## 注意事項
 

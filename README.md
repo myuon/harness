@@ -133,6 +133,68 @@ manifest は `~/.config/harness/manifest.json` に配置します。
 
 `.harness-decisions.json` はプロジェクトの `.gitignore` に追加することを推奨します（個人の環境依存の判断が含まれるため）。
 
+## フック管理
+
+### プロファイルとフック
+
+プロファイルは condition と hooks をセットで定義します。`/harness:install` 実行時に condition が評価され、`apply: true` となったプロファイルのフックが `.claude/settings.json` に書き込まれます。
+
+```json
+{
+  "profiles": {
+    "react": {
+      "condition": "React を使っているプロジェクト",
+      "hooks": [
+        {
+          "event": "PostToolUse",
+          "matcher": "Edit",
+          "command": "npx eslint --fix $CLAUDE_FILE_PATH"
+        }
+      ]
+    }
+  }
+}
+```
+
+### `_managedBy: "harness"` による識別
+
+harness が書き込んだフックには `"_managedBy": "harness"` フィールドが付与されます。これにより、手動で追加したフックと harness が管理するフックを区別できます。
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx eslint --fix $CLAUDE_FILE_PATH",
+            "_managedBy": "harness"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### 古いフックの自動クリーンアップ
+
+`/harness:install` を再実行すると、`_managedBy: "harness"` が付いているフックのうち、現在 `apply: true` となっているプロファイルに含まれないフックは自動的に削除されます。
+
+これにより以下のケースで古いフックが自動クリーンアップされます:
+
+- プロジェクトの技術スタックが変わり、プロファイルの condition が `apply: false` に変わった場合
+- manifest からプロファイルを削除した場合
+- フックの内容を変更した場合（古いコマンドが残らない）
+
+手動で追加したフック（`_managedBy` フィールドなし）は削除されません。
+
+### フックの書き込み先
+
+フックは `.claude/settings.json`（プロジェクトローカルの Claude Code 設定）に書き込まれます。グローバル設定（`~/.claude/settings.json`）は変更されません。
+
 ## ライセンス
 
 MIT

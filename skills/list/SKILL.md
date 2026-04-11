@@ -41,7 +41,12 @@ manifest の `profiles` セクションを以下の形式で表示する:
 - <name>
   - condition: <condition>
   - hooks: <hook 数> 件
+    - <event> / <matcher>: <command>
+    - <event> / <matcher>: <command>
+    ...
 ```
+
+各フックはイベント・matcher・コマンドをすべて表示すること。
 
 プロファイルが登録されていない場合は「プロファイルは登録されていません」と表示する。
 
