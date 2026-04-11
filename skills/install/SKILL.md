@@ -1,27 +1,33 @@
-# Skill: harness:install
-
-**Description**: マニフェストを読み込み、プロジェクトに合致するスキルをインストールする  
-**Trigger**: `/harness:install` または `/install`
-
+---
+name: install
+description: "マニフェストを読み込み、プロジェクトに合致するスキルをインストールする"
 ---
 
-## Instructions
+# install スキル
+
+マニフェストを読み込み、プロジェクトの実態を見て condition を評価し、必要なスキルをインストールする。
+
+## トリガー
+
+`/harness:install` または `/install`
+
+## 手順
 
 以下のステップを順番に実行すること。
 
-### Step 1: マニフェストの読み込み
+### 1. マニフェストの読み込み
 
 `~/.config/harness/manifest.json` を読み込む。
 
 - ファイルが存在しない場合 → 空のマニフェスト `{"skills": {}, "profiles": {}}` を作成し、ユーザーに通知する。続けて `/harness:sync` の実行を提案して終了する。
 
-### Step 2: 既存の判断記録の読み込み
+### 2. 既存の判断記録の読み込み
 
 プロジェクトルートの `.harness-decisions.json` を読み込む。
 
 - ファイルが存在しない場合 → 空の状態 `{"decisions": {"skills": {}, "profiles": {}}}` として扱う。
 
-### Step 3: 各スキルの条件評価
+### 3. 各スキルの条件評価
 
 マニフェストの `skills` に含まれる各スキルについて以下を実行する。
 
@@ -43,7 +49,7 @@
 
 判断に迷った場合はユーザーに確認してから進む。
 
-### Step 4: スキルのインストール
+### 4. スキルのインストール
 
 `install: true` と判断された各スキルについて以下のコマンドを実行する:
 
@@ -53,13 +59,13 @@ npx skills add <source> --skill <name> -y
 
 `source` と `name` はマニフェストから取得する（例: `source: "myuon/agent-skills"`, `name: "commit"`）。
 
-### Step 5: プロファイル/フックの評価
+### 5. プロファイル/フックの評価
 
 <!-- TODO: Phase 1 では profiles の評価はスキップする。将来的に profiles の条件評価とフックの適用を実装する。 -->
 
 現時点では profiles の処理は行わない。
 
-### Step 6: 判断記録の書き込み
+### 6. 判断記録の書き込み
 
 更新した判断記録をプロジェクトルートの `.harness-decisions.json` に書き込む。
 
@@ -78,7 +84,7 @@ npx skills add <source> --skill <name> -y
 }
 ```
 
-### Step 7: サマリーの表示
+### 7. サマリーの表示
 
 以下の3区分でユーザーに結果を表示する:
 
@@ -86,9 +92,7 @@ npx skills add <source> --skill <name> -y
 - **スキップ**: `install: false` と判断したスキル（reason 付き）
 - **判断済み（変更なし）**: すでに `.harness-decisions.json` に記録されていたためスキップしたスキル
 
----
-
-## Important Notes
+## 注意事項
 
 - condition 評価はプロジェクトの実態を確認して行う（推測ではなく実際にファイルを読む）
 - 判断に迷った場合はユーザーに確認する
