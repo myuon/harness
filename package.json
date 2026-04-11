@@ -1,0 +1,27 @@
+{
+  "name": "harness",
+  "version": "1.0.0",
+  "description": "宣言的ハーネス管理ツール — AI コーディングエージェント（Claude Code、Codex など）の skills と hooks をプロジェクトごとに管理します。",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/myuon/harness.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/myuon/harness/issues"
+  },
+  "homepage": "https://github.com/myuon/harness#readme",
+  "type": "module",
+  "devDependencies": {
+    "vitest": "^4.1.4"
+  }
+}

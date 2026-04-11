@@ -65,6 +65,73 @@ async function installSkillGroup({ source, scope, names }) {
   }));
 }
 
+/**
+ * Classify skills from a manifest into install categories.
+ *
+ * @param {Record<string, {source: string, scope?: string, condition?: string}>} skills
+ * @param {Record<string, {install: boolean, reason?: string}>} skillDecisions
+ * @param {Set<string>} globalInstalledSet
+ * @param {Set<string>} localInstalledSet
+ * @returns {{ alreadyInstalled: object[], toInstall: object[], needsEvaluation: object[], skippedByDecision: object[] }}
+ */
+export function classifySkills(skills, skillDecisions, globalInstalledSet, localInstalledSet) {
+  const alreadyInstalled = [];
+  const toInstall = [];
+  const needsEvaluation = [];
+  const skippedByDecision = [];
+
+  for (const [name, spec] of Object.entries(skills)) {
+    const source = spec.source;
+    const scope = spec.scope ?? "project";
+    const condition = spec.condition ?? "always";
+    const decision = skillDecisions[name];
+
+    const isGlobal = scope === "global";
+    const installedSet = isGlobal ? globalInstalledSet : localInstalledSet;
+    const installed = installedSet.has(name);
+
+    if (decision) {
+      if (decision.install === false) {
+        skippedByDecision.push({ name, reason: decision.reason ?? "" });
+      } else if (decision.install === true) {
+        if (installed) {
+          alreadyInstalled.push({ name, source, scope });
+        } else {
+          toInstall.push({ name, source, scope });
+        }
+      }
+    } else if (condition === "always") {
+      if (installed) {
+        alreadyInstalled.push({ name, source, scope });
+      } else {
+        toInstall.push({ name, source, scope });
+      }
+    } else {
+      needsEvaluation.push({ name, source, condition });
+    }
+  }
+
+  return { alreadyInstalled, toInstall, needsEvaluation, skippedByDecision };
+}
+
+/**
+ * Group toInstall items by source+scope.
+ *
+ * @param {Array<{name: string, source: string, scope: string}>} toInstall
+ * @returns {Array<{source: string, scope: string, names: string[]}>}
+ */
+export function groupBySource(toInstall) {
+  const groupMap = new Map();
+  for (const { name, source, scope } of toInstall) {
+    const key = `${source}\0${scope ?? "project"}`;
+    if (!groupMap.has(key)) {
+      groupMap.set(key, { source, scope: scope ?? "project", names: [] });
+    }
+    groupMap.get(key).names.push(name);
+  }
+  return Array.from(groupMap.values());
+}
+
 async function main() {
   const manifestPath = join(homedir(), ".config", "harness", "manifest.json");
   const decisionsPath = join(process.cwd(), ".harness-decisions.json");
@@ -102,54 +169,13 @@ async function main() {
 
   const skills = manifest.skills ?? {};
 
-  const alreadyInstalled = [];
-  const toInstall = [];
-  const needsEvaluation = [];
-  const skippedByDecision = [];
+  const { alreadyInstalled, toInstall, needsEvaluation, skippedByDecision } =
+    classifySkills(skills, skillDecisions, globalInstalledSet, localInstalledSet);
 
-  for (const [name, spec] of Object.entries(skills)) {
-    const source = spec.source;
-    const scope = spec.scope ?? "project";
-    const condition = spec.condition ?? "always";
-    const decision = skillDecisions[name];
-
-    const isGlobal = scope === "global";
-    const installedSet = isGlobal ? globalInstalledSet : localInstalledSet;
-    const installed = installedSet.has(name);
-
-    if (decision) {
-      if (decision.install === false) {
-        skippedByDecision.push({ name, reason: decision.reason ?? "" });
-      } else if (decision.install === true) {
-        if (installed) {
-          alreadyInstalled.push({ name, source, scope });
-        } else {
-          toInstall.push({ name, source, scope });
-        }
-      }
-    } else if (condition === "always") {
-      if (installed) {
-        alreadyInstalled.push({ name, source, scope });
-      } else {
-        toInstall.push({ name, source, scope });
-      }
-    } else {
-      needsEvaluation.push({ name, source, condition });
-    }
-  }
-
-  // Group toInstall by source+scope to minimize repository clones
-  const groupMap = new Map();
-  for (const { name, source, scope } of toInstall) {
-    const key = `${source}\0${scope ?? "project"}`;
-    if (!groupMap.has(key)) {
-      groupMap.set(key, { source, scope: scope ?? "project", names: [] });
-    }
-    groupMap.get(key).names.push(name);
-  }
+  const groups = groupBySource(toInstall);
 
   const groupResults = await Promise.all(
-    Array.from(groupMap.values()).map((group) => installSkillGroup(group))
+    groups.map((group) => installSkillGroup(group))
   );
   const installResults = groupResults.flat();
 
@@ -173,15 +199,19 @@ async function main() {
   );
 }
 
-main().catch((err) => {
-  process.stdout.write(
-    JSON.stringify({
-      installed: [],
-      already_installed: [],
-      needs_evaluation: [],
-      skipped_by_decision: [],
-      errors: [{ message: err.message }],
-    }) + "\n"
-  );
-  process.exit(1);
-});
+// Only run main() when executed directly as a script
+const isMain = import.meta.url === new URL(process.argv[1], "file://").href;
+if (isMain) {
+  main().catch((err) => {
+    process.stdout.write(
+      JSON.stringify({
+        installed: [],
+        already_installed: [],
+        needs_evaluation: [],
+        skipped_by_decision: [],
+        errors: [{ message: err.message }],
+      }) + "\n"
+    );
+    process.exit(1);
+  });
+}
