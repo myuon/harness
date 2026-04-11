@@ -78,7 +78,8 @@ manifest は `~/.config/harness/manifest.json` に配置します。
   "skills": {
     "commit": {
       "source": "myuon/agent-skills",
-      "condition": "always"
+      "condition": "always",
+      "scope": "global"
     },
     "react-no-useeffect": {
       "source": "myuon/agent-skills",
@@ -108,6 +109,7 @@ manifest は `~/.config/harness/manifest.json` に配置します。
 |-----------|------|
 | `source` | スキルが配置されている GitHub リポジトリ（`owner/repo` 形式） |
 | `condition` | 適用条件。`"always"` で常に適用、自然言語でプロジェクトの条件を記述することも可能 |
+| `scope` | インストール先。`"global"` でグローバル、`"project"`（デフォルト）でプロジェクトローカル。省略時は `"project"` |
 
 #### profiles
 
