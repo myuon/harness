@@ -132,26 +132,64 @@ export function groupBySource(toInstall) {
   return Array.from(groupMap.values());
 }
 
+async function fetchManifestFromUrl(url) {
+  let response;
+  try {
+    response = await fetch(url);
+  } catch (err) {
+    throw new Error(`fetch failed: ${err.message}`);
+  }
+  if (!response.ok) {
+    throw new Error(`fetch failed: ${response.status} ${response.statusText}`);
+  }
+  try {
+    return await response.json();
+  } catch (err) {
+    throw new Error(`failed to parse JSON from ${url}: ${err.message}`);
+  }
+}
+
 async function main() {
-  const manifestPath = join(homedir(), ".config", "harness", "manifest.json");
+  const urlArg = process.argv[2];
+  const isUrl = typeof urlArg === "string" && (urlArg.startsWith("http://") || urlArg.startsWith("https://"));
+
   const decisionsPath = join(process.cwd(), ".harness-decisions.json");
 
-  const manifest = await readJsonFile(manifestPath, null);
-  if (!manifest) {
-    process.stdout.write(
-      JSON.stringify({
-        installed: [],
-        already_installed: [],
-        needs_evaluation: [],
-        skipped_by_decision: [],
-        errors: [
-          {
-            message: `manifest not found: ${manifestPath}`,
-          },
-        ],
-      }) + "\n"
-    );
-    process.exit(1);
+  let manifest;
+  if (isUrl) {
+    try {
+      manifest = await fetchManifestFromUrl(urlArg);
+    } catch (err) {
+      process.stdout.write(
+        JSON.stringify({
+          installed: [],
+          already_installed: [],
+          needs_evaluation: [],
+          skipped_by_decision: [],
+          errors: [{ message: err.message }],
+        }) + "\n"
+      );
+      process.exit(1);
+    }
+  } else {
+    const manifestPath = join(homedir(), ".config", "harness", "manifest.json");
+    manifest = await readJsonFile(manifestPath, null);
+    if (!manifest) {
+      process.stdout.write(
+        JSON.stringify({
+          installed: [],
+          already_installed: [],
+          needs_evaluation: [],
+          skipped_by_decision: [],
+          errors: [
+            {
+              message: `manifest not found: ${manifestPath}`,
+            },
+          ],
+        }) + "\n"
+      );
+      process.exit(1);
+    }
   }
 
   const decisions = await readJsonFile(decisionsPath, {

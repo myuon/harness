@@ -19,8 +19,19 @@ description: "マニフェストを読み込み、プロジェクトに合致す
 curl -fsSL https://raw.githubusercontent.com/myuon/harness/main/scripts/harness-install.mjs -o /tmp/harness-install.mjs && node /tmp/harness-install.mjs
 ```
 
+リモートの manifest を使う場合は URL を引数として渡す:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/myuon/harness/main/scripts/harness-install.mjs -o /tmp/harness-install.mjs && node /tmp/harness-install.mjs https://raw.githubusercontent.com/owner/repo/main/manifest.json
+```
+
+例: `/harness:install https://raw.githubusercontent.com/owner/repo/main/manifest.json`
+
+- URL が指定された場合: `fetch()` でその URL から manifest JSON を取得して使う
+- URL が指定されない場合: ローカルの `~/.config/harness/manifest.json` を読む
+
 スクリプトが以下を自動で行い、結果を JSON で返す:
-- マニフェスト（`~/.config/harness/manifest.json`）の読み込み
+- マニフェスト（URL 指定時はリモート、省略時は `~/.config/harness/manifest.json`）の読み込み
 - 判断記録（`.harness-decisions.json`）の読み込み
 - インストール済みスキル一覧の取得
 - `condition: "always"` かつ未インストールのスキルのインストール実行
