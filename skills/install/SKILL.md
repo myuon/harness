@@ -38,15 +38,27 @@ HARNESS_MANIFEST_URL=https://raw.githubusercontent.com/owner/repo/main/manifest.
 
 ### 2. needs_evaluation の処理
 
-スクリプトの出力に `needs_evaluation` がある場合のみ、各スキルの condition をプロジェクトの実態を見て評価する:
+スクリプトの出力に `needs_evaluation` がある場合のみ、各エントリの condition をプロジェクトの実態を見て評価する:
 
 - package.json の dependencies/devDependencies
 - ディレクトリ構造やファイル拡張子
 - フレームワーク設定ファイル
 
+#### type: "skill" の場合
+
 評価結果が `install: true` のスキルは以下を実行:
 - `scope: "global"` → `npx skills add <source> --skill <name> -g -y`
 - `scope: "project"`（デフォルト）→ `npx skills add <source> --skill <name> -y`
+
+#### type: "profile" の場合
+
+`needs_evaluation` に `type: "profile"` のエントリがある場合、profile 単位で condition を評価する:
+
+- profile の condition を評価し `apply: true` なら、その profile 内の全スキルをインストールする
+  - 各スキルの `scope` に従い `npx skills add <source> --skill <name> [-g] -y` を実行
+- `apply: false` なら、その profile 内の全スキルをスキップする
+
+判断結果は `decisions.profiles` に書き込む（スキルの判断は `decisions.skills` ではなく profile 側で管理）。
 
 ### 3. 判断記録の更新
 

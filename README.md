@@ -90,6 +90,26 @@ manifest は `~/.config/harness/manifest.json` に配置します。
     }
   },
   "profiles": {
+    "expo": {
+      "condition": "Expo（React Native）を使っているプロジェクト",
+      "skills": {
+        "expo-router": {
+          "source": "myuon/agent-skills",
+          "scope": "project"
+        },
+        "react-native-style": {
+          "source": "myuon/agent-skills",
+          "scope": "project"
+        }
+      },
+      "hooks": [
+        {
+          "event": "PostToolUse",
+          "matcher": "Edit",
+          "command": "npx expo lint --fix $CLAUDE_FILE_PATH"
+        }
+      ]
+    },
     "react": {
       "condition": "React を使っているプロジェクト",
       "hooks": [
@@ -121,6 +141,9 @@ manifest は `~/.config/harness/manifest.json` に配置します。
 | フィールド | 説明 |
 |-----------|------|
 | `condition` | プロファイルを適用する条件（自然言語で記述） |
+| `skills` | プロファイルに含まれるスキルのマップ（省略可）。`condition` が `apply: true` の場合にまとめてインストールされる |
+| `skills.<name>.source` | スキルが配置されている GitHub リポジトリ（`owner/repo` 形式） |
+| `skills.<name>.scope` | インストール先。`"global"` または `"project"`（デフォルト） |
 | `hooks` | 適用するフックのリスト |
 | `hooks[].event` | フックを発火するイベント（例: `PostToolUse`, `PreToolUse`） |
 | `hooks[].matcher` | フックを適用するツール名（例: `Edit`, `Bash`） |
@@ -207,11 +230,14 @@ React のベストプラクティスに従うこと
       "react-no-useeffect": { "install": true, "reason": "package.json に react@19 あり" }
     },
     "profiles": {
-      "react": { "apply": true, "reason": "package.json に react@19 あり" }
+      "expo": { "apply": true, "reason": "package.json に expo@52 あり" },
+      "react": { "apply": false, "reason": "React Native プロジェクトのため react profile は不要" }
     }
   }
 }
 ```
+
+`profiles.<name>.apply` が `true` の場合、そのプロファイルに含まれる `skills` が全てインストールされます。`false` の場合は全てスキップされます。
 
 次回の `/harness:install` 実行時はこの記録を参照し、再評価なしで即時適用します。判断をリセットしたい場合はファイルを削除してください。
 
