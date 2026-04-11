@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { classifySkills, groupBySource } from "./harness-install.mjs";
+import { classifySkills, groupBySource } from "./classify.js";
 
 // ---------------------------------------------------------------------------
 // classifySkills
 // ---------------------------------------------------------------------------
 
 describe("classifySkills", () => {
-  const empty = new Set();
+  const empty = new Set<string>();
 
   describe("condition: always", () => {
     it("未インストール → toInstall", () => {
@@ -122,7 +122,6 @@ describe("classifySkills", () => {
       const skills = {
         "global-skill": { source: "gh:owner/repo", scope: "global" },
       };
-      // globalInstalledSet にだけ登録されている
       const globalInstalled = new Set(["global-skill"]);
       const result = classifySkills(skills, {}, globalInstalled, empty);
       expect(result.alreadyInstalled).toEqual([
@@ -134,7 +133,6 @@ describe("classifySkills", () => {
       const skills = {
         "global-skill": { source: "gh:owner/repo", scope: "global" },
       };
-      // localInstalledSet にだけ登録されている（global には未登録）
       const localInstalled = new Set(["global-skill"]);
       const result = classifySkills(skills, {}, empty, localInstalled);
       expect(result.toInstall).toEqual([

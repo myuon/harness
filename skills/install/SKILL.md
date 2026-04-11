@@ -16,13 +16,13 @@ description: "マニフェストを読み込み、プロジェクトに合致す
 **必ず最初にこのコマンドを実行すること。他の手順を先に行ってはならない。**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/myuon/harness/main/scripts/harness-install.mjs -o /tmp/harness-install.mjs && node /tmp/harness-install.mjs
+curl -fsSL https://github.com/myuon/harness/releases/latest/download/harness-install.mjs | node --input-type=module
 ```
 
-リモートの manifest を使う場合は URL を引数として渡す:
+リモートの manifest を使う場合は環境変数 `HARNESS_MANIFEST_URL` で URL を渡す:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/myuon/harness/main/scripts/harness-install.mjs -o /tmp/harness-install.mjs && node /tmp/harness-install.mjs https://raw.githubusercontent.com/owner/repo/main/manifest.json
+HARNESS_MANIFEST_URL=https://raw.githubusercontent.com/owner/repo/main/manifest.json curl -fsSL https://github.com/myuon/harness/releases/latest/download/harness-install.mjs | node --input-type=module
 ```
 
 例: `/harness:install https://raw.githubusercontent.com/owner/repo/main/manifest.json`
