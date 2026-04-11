@@ -5,209 +5,50 @@ description: "マニフェストを読み込み、プロジェクトに合致す
 
 # install スキル
 
-マニフェストを読み込み、プロジェクトの実態を見て condition を評価し、必要なスキルをインストールする。
-
 ## トリガー
 
 `/harness:install` または `/install`
 
 ## 手順
 
-以下のステップを順番に実行すること。
+### 1. 読み込み（並列実行）
 
-### 1. マニフェストの読み込み
+以下を**すべて並列で**読み込む:
 
-`~/.config/harness/manifest.json` を読み込む。
+- `~/.config/harness/manifest.json`（なければ `{"skills": {}, "profiles": {}}` を作成して終了）
+- `.harness-decisions.json`（なければ `{"decisions": {"skills": {}, "profiles": {}}}` として扱う）
+- `npx skills ls -g --json` の結果（グローバルインストール済みスキル一覧）
+- `npx skills ls --json` の結果（プロジェクトローカルインストール済みスキル一覧）
 
-- ファイルが存在しない場合 → 空のマニフェスト `{"skills": {}, "profiles": {}}` を作成し、ユーザーに通知する。続けて `/harness:sync` の実行を提案して終了する。
+### 2. 条件評価
 
-### 2. 既存の判断記録の読み込み
+マニフェストの各スキルについて:
 
-プロジェクトルートの `.harness-decisions.json` を読み込む。
+- 判断記録に既にあれば → スキップ
+- `condition: "always"` → `install: true`
+- その他 → プロジェクトの実態（package.json, ディレクトリ構造, 設定ファイル等）を確認して評価
 
-- ファイルが存在しない場合 → 空の状態 `{"decisions": {"skills": {}, "profiles": {}}}` として扱う。
+### 3. インストール
 
-### 3. 各スキルの条件評価
+`install: true` の各スキルについて:
 
-マニフェストの `skills` に含まれる各スキルについて以下を実行する。
+1. **既にインストール済みか確認**: ステップ1で取得した一覧にスキル名があればスキップ（`scope: "global"` ならグローバル一覧、それ以外はローカル一覧を参照）
+2. **未インストールならインストール実行**:
+   - `scope: "global"` → `npx skills add <source> --skill <name> -g -y`
+   - `scope: "project"`（デフォルト）→ `npx skills add <source> --skill <name> -y`
 
-**すでに判断記録に存在するスキルはスキップする**（既存の判断記録は上書きしない）。
+### 4. プロファイル（profiles が空なら省略）
 
-条件に応じて判断を決定する:
+manifest の `profiles` が空でなければ、各プロファイルの condition を評価し、`apply: true` のものの hooks を `.claude/settings.json` にマージする（`"_managedBy": "harness"` 付与）。
 
-- `condition: "always"` → `install: true`, `reason: "always"`
-- その他の condition 文字列 → プロジェクトの実態を調べて評価する
+### 5. 記録と表示
 
-**condition 評価の方法** (推測ではなく実際にファイルを読むこと):
+1. `.harness-decisions.json` に判断結果を書き込む
+2. サマリーをテーブル形式で表示（スキル名 / 結果 / 理由）
 
-1. `package.json` が存在する場合 → `dependencies` / `devDependencies` を確認する
-2. ディレクトリ構造を確認する（`src/`, `app/`, `pages/` など）
-3. ファイルの拡張子を確認する（`.tsx`, `.go`, `.py` など）
-4. フレームワーク設定ファイルを確認する（`next.config.js`, `vite.config.ts`, `go.mod`, `Cargo.toml` など）
+## 注意
 
-評価結果を `install: true/false` と具体的な `reason` とともに記録する。
-
-判断に迷った場合はユーザーに確認してから進む。
-
-### 4. スキルのインストール
-
-`install: true` と判断された各スキルについて、**まず既にインストール済みかどうかを確認してからインストールする**。
-
-**インストール済みの確認方法:**
-
-- `scope: "global"` の場合 → `npx skills ls -g --json` の結果にそのスキル名が含まれていれば「既にインストール済み」としてスキップ
-- `scope: "project"`（デフォルト）の場合 → `npx skills ls --json` の結果にそのスキル名が含まれていれば「既にインストール済み」としてスキップ
-
-**インストールコマンド:**
-
-- `scope: "global"` → `npx skills add <source> --skill <name> -g -y`
-- `scope: "project"`（デフォルト）→ `npx skills add <source> --skill <name> -y`
-
-`source` と `name` はマニフェストから取得する（例: `source: "myuon/agent-skills"`, `name: "commit"`）。
-
-### 5. プロファイル/フックの評価と適用
-
-マニフェストの `profiles` セクションに含まれる各プロファイルについて以下を実行する。
-
-#### 5-1. 条件評価
-
-**すでに判断記録に存在するプロファイルはスキップする**（既存の判断記録は上書きしない）。
-
-条件評価はスキルと同様の方法で行う（Step 3 参照）:
-
-- `condition: "always"` → `apply: true`, `reason: "always"`
-- その他の condition 文字列 → プロジェクトの実態を調べて評価する
-
-評価結果を `apply: true/false` と具体的な `reason` とともに記録する。
-
-#### 5-2. 古いフックの削除（クリーンアップ）
-
-`.claude/settings.json` を読み込み（存在しない場合は空として扱う）、`"_managedBy": "harness"` が付いているフックのうち、今回 `apply: true` となったプロファイルのいずれにも含まれないフックを削除する。
-
-これにより、プロファイルの適用条件が変わった際に古いフックが残り続けることを防ぐ。
-
-#### 5-3. フックの適用
-
-`apply: true` と判断された各プロファイルについて以下を行う:
-
-1. `.claude/settings.json` を読み込む（存在しない場合は `{}` として扱い、後で新規作成する）
-2. プロファイルの `hooks` 配列の各フックについて:
-   - 同じイベント・matcher・コマンドを持つフックがすでに存在する場合はスキップ（重複追加しない）
-   - 存在しない場合は、フックエントリに `"_managedBy": "harness"` フィールドを追加して、対応するイベント配列に追加する
-3. 更新した内容を `.claude/settings.json` に書き込む
-
-**`.claude/settings.json` のフックフォーマット:**
-
-```json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "npx eslint --fix $CLAUDE_FILE_PATH",
-            "_managedBy": "harness"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-なお、`.claude/settings.json` のフック構造は Claude Code の仕様に従うこと。同一の matcher エントリがすでに存在する場合は、その `hooks` 配列に追記する。
-
-#### 5-4. Settings の適用
-
-**古い harness 管理 settings のクリーンアップ:**
-
-`.claude/settings.json` を読み込み、以下の処理を行う:
-
-1. `customInstructions` フィールドに `<!-- harness:start:<profile-name> -->` ... `<!-- harness:end:<profile-name> -->` マーカーが含まれる場合、今回 `apply: true` でないプロファイルのマーカーブロックを削除する
-2. `allowedTools` フィールドに含まれるツールのうち、今回 `apply: true` でないプロファイルの `settings.allowedTools` 由来のもの（判断記録で追跡）を削除する
-
-**Settings の適用:**
-
-`apply: true` と判断された各プロファイルのうち `settings` フィールドを持つものについて以下を行う:
-
-1. `.claude/settings.json` を読み込む（存在しない場合は `{}` として扱う）
-2. 各 settings キーについて:
-   - **`allowedTools`**: 配列をマージする（union、重複なし）。新たに追加したツールを判断記録の `profiles.<name>.addedTools` に記録する
-   - **`customInstructions`**: すでに値が存在する場合は改行で区切って追記する。追記するテキストは以下のマーカーで囲む:
-     ```
-     <!-- harness:start:<profile-name> -->
-     <追記するテキスト>
-     <!-- harness:end:<profile-name> -->
-     ```
-     すでに同じプロファイルのマーカーブロックが存在する場合は上書き（削除して再追記）する
-   - **その他のキー**: 値を直接セットする（上書き）。判断記録の `profiles.<name>.setSettings` に `{ key: value }` として記録する
-3. 更新した内容を `.claude/settings.json` に書き込む
-
-**判断記録への追記:**
-
-settings 適用の結果を `.harness-decisions.json` の対応するプロファイルエントリに追記する:
-
-```json
-{
-  "decisions": {
-    "profiles": {
-      "react": {
-        "apply": true,
-        "reason": "package.json に react@19 あり",
-        "addedTools": ["Edit", "Write", "Bash"],
-        "setSettings": {}
-      }
-    }
-  }
-}
-```
-
-### 6. 判断記録の書き込み
-
-更新した判断記録をプロジェクトルートの `.harness-decisions.json` に書き込む。
-
-フォーマット:
-
-```json
-{
-  "decisions": {
-    "skills": {
-      "commit": { "install": true, "reason": "always" },
-      "react-no-useeffect": { "install": true, "reason": "package.json に react@19 あり" },
-      "agent-browser": { "install": false, "reason": "CLI ツールのため画面なし" }
-    },
-    "profiles": {
-      "react": { "apply": true, "reason": "package.json に react@19 あり" },
-      "node": { "apply": false, "reason": "Rust プロジェクトのため対象外" }
-    }
-  }
-}
-```
-
-### 7. サマリーの表示
-
-以下の区分でユーザーに結果を表示する:
-
-**スキル:**
-
-- **インストール済み**: 今回インストールしたスキル（reason 付き）
-- **既にインストール済み**: `install: true` だが既にインストールされていたためスキップしたスキル
-- **スキップ**: `install: false` と判断したスキル（reason 付き）
-- **判断済み（変更なし）**: すでに `.harness-decisions.json` に記録されていたためスキップしたスキル
-
-**プロファイル/フック/Settings:**
-
-- **適用済みプロファイル**: 今回 `apply: true` と判断したプロファイル（reason 付き、適用したフック数と settings キー一覧も表示）
-- **スキップしたプロファイル**: `apply: false` と判断したプロファイル（reason 付き）
-- **判断済み（変更なし）**: すでに `.harness-decisions.json` に記録されていたためスキップしたプロファイル
-- **削除した古いフック**: `_managedBy: "harness"` が付いていたが今回のプロファイルに含まれなかったため削除したフック（あれば表示）
-- **クリーンアップした古い settings**: 今回 `apply: false` となったプロファイルの settings（マーカーブロック削除、allowedTools 削除）（あれば表示）
-
-## 注意事項
-
-- condition 評価はプロジェクトの実態を確認して行う（推測ではなく実際にファイルを読む）
-- 判断に迷った場合はユーザーに確認する
-- 既存の判断記録は上書きしない（記録を消して再実行する運用）
-- `scope` を省略した場合はプロジェクトローカル（`"project"`）としてインストールする
+- condition 評価は推測ではなく実際にファイルを読んで行う
+- 判断に迷ったらユーザーに確認する
+- 既存の判断記録は上書きしない
+- `scope` 省略時は `"project"`
