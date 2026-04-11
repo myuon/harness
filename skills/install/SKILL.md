@@ -11,40 +11,39 @@ description: "マニフェストを読み込み、プロジェクトに合致す
 
 ## 手順
 
-### 1. 読み込み（並列実行）
+### 1. スクリプト実行
 
-以下を**すべて並列で**読み込む:
+以下のコマンドを実行する:
 
-- `~/.config/harness/manifest.json`（なければ `{"skills": {}, "profiles": {}}` を作成して終了）
-- `.harness-decisions.json`（なければ `{"decisions": {"skills": {}, "profiles": {}}}` として扱う）
-- `npx skills ls -g --json` の結果（グローバルインストール済みスキル一覧）
-- `npx skills ls --json` の結果（プロジェクトローカルインストール済みスキル一覧）
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/scripts/harness-install.mjs"
+```
 
-### 2. 条件評価
+スクリプトが以下を自動で行い、結果を JSON で返す:
+- マニフェスト（`~/.config/harness/manifest.json`）の読み込み
+- 判断記録（`.harness-decisions.json`）の読み込み
+- インストール済みスキル一覧の取得
+- `condition: "always"` かつ未インストールのスキルのインストール実行
 
-マニフェストの各スキルについて:
+### 2. needs_evaluation の処理
 
-- 判断記録に既にあれば → スキップ
-- `condition: "always"` → `install: true`
-- その他 → プロジェクトの実態（package.json, ディレクトリ構造, 設定ファイル等）を確認して評価
+スクリプトの出力に `needs_evaluation` がある場合のみ、各スキルの condition をプロジェクトの実態を見て評価する:
 
-### 3. インストール
+- package.json の dependencies/devDependencies
+- ディレクトリ構造やファイル拡張子
+- フレームワーク設定ファイル
 
-`install: true` の各スキルについて:
+評価結果が `install: true` のスキルは以下を実行:
+- `scope: "global"` → `npx skills add <source> --skill <name> -g -y`
+- `scope: "project"`（デフォルト）→ `npx skills add <source> --skill <name> -y`
 
-1. **既にインストール済みか確認**: ステップ1で取得した一覧にスキル名があればスキップ（`scope: "global"` ならグローバル一覧、それ以外はローカル一覧を参照）
-2. **未インストールならインストール実行**:
-   - `scope: "global"` → `npx skills add <source> --skill <name> -g -y`
-   - `scope: "project"`（デフォルト）→ `npx skills add <source> --skill <name> -y`
+### 3. 判断記録の更新
 
-### 4. プロファイル（profiles が空なら省略）
+`.harness-decisions.json` にすべての判断結果を書き込む（スクリプト結果 + needs_evaluation の評価結果を統合）。
 
-manifest の `profiles` が空でなければ、各プロファイルの condition を評価し、`apply: true` のものの hooks を `.claude/settings.json` にマージする（`"_managedBy": "harness"` 付与）。
+### 4. サマリー表示
 
-### 5. 記録と表示
-
-1. `.harness-decisions.json` に判断結果を書き込む
-2. サマリーをテーブル形式で表示（スキル名 / 結果 / 理由）
+テーブル形式で表示（スキル名 / 結果 / 理由）。
 
 ## 注意
 
