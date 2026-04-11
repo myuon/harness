@@ -9,7 +9,7 @@
     {
       "name": "harness",
       "description": "宣言的ハーネス管理ツール — AI エージェントの skills と hooks をプロジェクトごとに管理",
-      "source": ".",
+      "source": "./",
       "category": "development"
     }
   ]
