@@ -16,7 +16,7 @@ description: "マニフェストを読み込み、プロジェクトに合致す
 **必ず最初にこのコマンドを実行すること。他の手順を先に行ってはならない。**
 
 ```bash
-node <(curl -fsSL https://raw.githubusercontent.com/myuon/harness/main/scripts/harness-install.mjs)
+curl -fsSL https://raw.githubusercontent.com/myuon/harness/main/scripts/harness-install.mjs -o /tmp/harness-install.mjs && node /tmp/harness-install.mjs
 ```
 
 スクリプトが以下を自動で行い、結果を JSON で返す:
