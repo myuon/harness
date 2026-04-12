@@ -4,22 +4,12 @@
       "commit": { "install": true, "reason": "always" },
       "dispatch": { "install": true, "reason": "always" },
       "agmux": { "install": true, "reason": "always" },
-      "agent-browser": { "install": false, "reason": "CLI ツール・プラグインプロジェクトのため画面なし" },
-      "react-no-useeffect": { "install": false, "reason": "React を使用していない" },
-      "react-router-loader": { "install": false, "reason": "React Router を使用していない" },
-      "building-native-ui": { "install": false, "reason": "Expo / React Native を使用していない" },
-      "expo-api-routes": { "install": false, "reason": "Expo / React Native を使用していない" },
-      "expo-cicd-workflows": { "install": false, "reason": "Expo / React Native を使用していない" },
-      "expo-deployment": { "install": false, "reason": "Expo / React Native を使用していない" },
-      "expo-dev-client": { "install": false, "reason": "Expo / React Native を使用していない" },
-      "expo-module": { "install": false, "reason": "Expo / React Native を使用していない" },
-      "expo-tailwind-setup": { "install": false, "reason": "Expo / React Native を使用していない" },
-      "expo-ui-jetpack-compose": { "install": false, "reason": "Expo / React Native を使用していない" },
-      "expo-ui-swift-ui": { "install": false, "reason": "Expo / React Native を使用していない" },
-      "native-data-fetching": { "install": false, "reason": "Expo / React Native を使用していない" },
-      "upgrading-expo": { "install": false, "reason": "Expo / React Native を使用していない" },
-      "use-dom": { "install": false, "reason": "Expo / React Native を使用していない" }
+      "agent-browser": { "install": false, "reason": "CLI ツール・プラグインプロジェクトのため画面なし" }
     },
-    "profiles": {}
+    "profiles": {
+      "react": { "apply": false, "reason": "React を使用していない" },
+      "react-router": { "apply": false, "reason": "React Router を使用していない" },
+      "expo": { "apply": false, "reason": "Expo / React Native を使用していない" }
+    }
   }
 }
