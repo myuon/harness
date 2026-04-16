@@ -478,6 +478,52 @@ describe("classifyPlugins", () => {
       expect(result.toInstall[0].scope).toBe("project");
     });
   });
+
+  describe("version: 省略 / latest", () => {
+    it("version 省略 + 未インストール → toInstall (version: 'latest')", () => {
+      const plugins = {
+        "harness@myuon-harness": { condition: "always" },
+      };
+      const result = classifyPlugins(plugins, noDecisions, noInstalled);
+      expect(result.toInstall).toEqual([
+        { name: "harness@myuon-harness", version: "latest", scope: "user" },
+      ]);
+    });
+
+    it("version 省略 + インストール済み → toUpdate (常に最新へ更新)", () => {
+      const plugins = {
+        "harness@myuon-harness": { condition: "always" },
+      };
+      const installed = { "harness@myuon-harness": { version: "0.5.0" } };
+      const result = classifyPlugins(plugins, noDecisions, installed);
+      expect(result.toUpdate).toEqual([
+        { name: "harness@myuon-harness", version: "latest", currentVersion: "0.5.0", scope: "user" },
+      ]);
+      expect(result.alreadyInstalled).toHaveLength(0);
+    });
+
+    it("version: 'latest' + 未インストール → toInstall (version: 'latest')", () => {
+      const plugins = {
+        "harness@myuon-harness": { version: "latest", condition: "always" },
+      };
+      const result = classifyPlugins(plugins, noDecisions, noInstalled);
+      expect(result.toInstall).toEqual([
+        { name: "harness@myuon-harness", version: "latest", scope: "user" },
+      ]);
+    });
+
+    it("version: 'latest' + インストール済み → toUpdate (常に最新へ更新)", () => {
+      const plugins = {
+        "harness@myuon-harness": { version: "latest", condition: "always" },
+      };
+      const installed = { "harness@myuon-harness": { version: "0.5.0" } };
+      const result = classifyPlugins(plugins, noDecisions, installed);
+      expect(result.toUpdate).toEqual([
+        { name: "harness@myuon-harness", version: "latest", currentVersion: "0.5.0", scope: "user" },
+      ]);
+      expect(result.alreadyInstalled).toHaveLength(0);
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
