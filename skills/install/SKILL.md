@@ -38,6 +38,7 @@ HARNESS_MANIFEST_URL=https://raw.githubusercontent.com/owner/repo/main/manifest.
 - 判断記録（`.harness-decisions.json`）の読み込み
 - インストール済みスキル一覧の取得
 - `condition: "always"` かつ未インストールのスキルのインストール実行
+- プラグインの分類・インストール・更新（`plugins_installed`, `plugins_updated`, `plugins_already_installed`, `plugins_needs_evaluation`, `plugins_skipped_by_decision`）
 
 ### 2. needs_evaluation の処理
 
@@ -63,17 +64,34 @@ HARNESS_MANIFEST_URL=https://raw.githubusercontent.com/owner/repo/main/manifest.
 
 判断結果は `decisions.profiles` に書き込む（スキルの判断は `decisions.skills` ではなく profile 側で管理）。
 
+#### プラグインの needs_evaluation
+
+`plugins_needs_evaluation` にエントリがある場合、各プラグインの condition をプロジェクトの実態を見て評価する:
+
+- 評価結果が `install: true` のプラグインは `claude plugins install <name> -s <scope>` を実行
+- `install: false` のプラグインはスキップする
+
 ### 3. 判断記録の更新
 
 `.harness-decisions.json` にすべての判断結果を書き込む（スクリプト結果 + needs_evaluation の評価結果を統合）。
 
+- スキルの判断は `decisions.skills` に書き込む
+- プロファイルの判断は `decisions.profiles` に書き込む
+- プラグインの判断は `decisions.plugins` に書き込む
+
 ### 4. サマリー表示
 
-テーブル形式で表示（スキル名 / 結果 / 理由）。
+テーブル形式で表示（スキル名 / 結果 / 理由）。プラグインの結果も含める:
+- `plugins_installed`: インストールされたプラグイン
+- `plugins_updated`: 更新されたプラグイン
+- `plugins_already_installed`: 既にインストール済みのプラグイン
+- `plugins_needs_evaluation`: 条件評価が必要だったプラグイン
+- `plugins_skipped_by_decision`: スキップされたプラグイン
 
 ## 注意
 
 - condition 評価は推測ではなく実際にファイルを読んで行う
 - 判断に迷ったらユーザーに確認する
 - 既存の判断記録は上書きしない
-- `scope` 省略時は `"project"`
+- スキルの `scope` 省略時は `"project"`
+- プラグインの `scope` 省略時は `"user"`
