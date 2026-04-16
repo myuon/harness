@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { classifySkills, groupBySource } from "./classify.js";
+import { classifySkills, classifyPlugins, groupBySource } from "./classify.js";
 
 // ---------------------------------------------------------------------------
 // classifySkills
@@ -348,6 +348,134 @@ describe("classifySkills - profiles", () => {
       expect(result.toInstall).toEqual([
         { name: "global-skill", source: "gh:owner/repo", scope: "global" },
       ]);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// classifyPlugins
+// ---------------------------------------------------------------------------
+
+describe("classifyPlugins", () => {
+  const noDecisions = {};
+  const noInstalled = {};
+
+  describe("condition: always", () => {
+    it("未インストール → toInstall", () => {
+      const plugins = {
+        "harness@myuon-harness": { version: "0.5.0", condition: "always" },
+      };
+      const result = classifyPlugins(plugins, noDecisions, noInstalled);
+      expect(result.toInstall).toEqual([
+        { name: "harness@myuon-harness", version: "0.5.0", scope: "user" },
+      ]);
+    });
+
+    it("インストール済み・同バージョン → alreadyInstalled", () => {
+      const plugins = {
+        "harness@myuon-harness": { version: "0.5.0", condition: "always" },
+      };
+      const installed = { "harness@myuon-harness": { version: "0.5.0" } };
+      const result = classifyPlugins(plugins, noDecisions, installed);
+      expect(result.alreadyInstalled).toEqual([
+        { name: "harness@myuon-harness", version: "0.5.0", scope: "user" },
+      ]);
+      expect(result.toInstall).toHaveLength(0);
+      expect(result.toUpdate).toHaveLength(0);
+    });
+
+    it("インストール済み・異バージョン → toUpdate", () => {
+      const plugins = {
+        "harness@myuon-harness": { version: "0.6.0", condition: "always" },
+      };
+      const installed = { "harness@myuon-harness": { version: "0.5.0" } };
+      const result = classifyPlugins(plugins, noDecisions, installed);
+      expect(result.toUpdate).toEqual([
+        { name: "harness@myuon-harness", version: "0.6.0", currentVersion: "0.5.0", scope: "user" },
+      ]);
+      expect(result.alreadyInstalled).toHaveLength(0);
+      expect(result.toInstall).toHaveLength(0);
+    });
+  });
+
+  describe("condition: 自然言語", () => {
+    it("decisions なし → needsEvaluation", () => {
+      const plugins = {
+        "harness@myuon-harness": {
+          version: "0.5.0",
+          condition: "use when working with TypeScript",
+        },
+      };
+      const result = classifyPlugins(plugins, noDecisions, noInstalled);
+      expect(result.needsEvaluation).toEqual([
+        {
+          name: "harness@myuon-harness",
+          version: "0.5.0",
+          condition: "use when working with TypeScript",
+        },
+      ]);
+      expect(result.toInstall).toHaveLength(0);
+    });
+  });
+
+  describe("decision あり", () => {
+    it("decision.install: true + 未インストール → toInstall", () => {
+      const plugins = {
+        "harness@myuon-harness": {
+          version: "0.5.0",
+          condition: "use when working with TypeScript",
+        },
+      };
+      const decisions = { "harness@myuon-harness": { install: true } };
+      const result = classifyPlugins(plugins, decisions, noInstalled);
+      expect(result.toInstall).toEqual([
+        { name: "harness@myuon-harness", version: "0.5.0", scope: "user" },
+      ]);
+    });
+
+    it("decision.install: false → skippedByDecision", () => {
+      const plugins = {
+        "harness@myuon-harness": { version: "0.5.0", condition: "always" },
+      };
+      const decisions = { "harness@myuon-harness": { install: false, reason: "not needed" } };
+      const result = classifyPlugins(plugins, decisions, noInstalled);
+      expect(result.skippedByDecision).toEqual([
+        { name: "harness@myuon-harness", reason: "not needed" },
+      ]);
+      expect(result.toInstall).toHaveLength(0);
+    });
+
+    it("decision.install: true + 異バージョン → toUpdate", () => {
+      const plugins = {
+        "harness@myuon-harness": {
+          version: "0.6.0",
+          condition: "use when needed",
+        },
+      };
+      const decisions = { "harness@myuon-harness": { install: true } };
+      const installed = { "harness@myuon-harness": { version: "0.5.0" } };
+      const result = classifyPlugins(plugins, decisions, installed);
+      expect(result.toUpdate).toEqual([
+        { name: "harness@myuon-harness", version: "0.6.0", currentVersion: "0.5.0", scope: "user" },
+      ]);
+    });
+  });
+
+  describe("scope 指定", () => {
+    it("scope 省略時は user がデフォルト", () => {
+      const plugins = {
+        "harness@myuon-harness": { version: "0.5.0" },
+      };
+      const result = classifyPlugins(plugins, noDecisions, noInstalled);
+      expect(result.toInstall[0].scope).toBe("user");
+    });
+
+    it("scope: project が正しく反映される", () => {
+      const plugins = {
+        "harness@myuon-harness": { version: "0.5.0", scope: "project" },
+      };
+      const result = classifyPlugins(plugins, noDecisions, noInstalled);
+      expect(result.toInstall[0].scope).toBe("project");
     });
   });
 });

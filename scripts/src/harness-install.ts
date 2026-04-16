@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { classifySkills, groupBySource } from "./classify.js";
+import { classifySkills, classifyPlugins, groupBySource } from "./classify.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -76,6 +76,17 @@ async function installSkillGroup({
   }));
 }
 
+async function installPlugin(name: string, scope: string): Promise<{ ok: boolean; error?: string }> {
+  const result = await runCommand("claude", ["plugins", "install", name, "-s", scope]);
+  return result.ok ? { ok: true } : { ok: false, error: result.error };
+}
+
+async function getInstalledPlugins(): Promise<Record<string, { version: string }>> {
+  const pluginsPath = join(homedir(), ".claude", "plugins", "installed_plugins.json");
+  const data = await readJsonFile<Record<string, { version: string }>>(pluginsPath, {});
+  return data ?? {};
+}
+
 async function fetchManifestFromUrl(url: string): Promise<unknown> {
   let response: Response;
   try {
@@ -106,6 +117,7 @@ async function main(): Promise<void> {
   let manifest: {
     skills?: Record<string, { source: string; scope?: string; condition?: string }>;
     profiles?: Record<string, ProfileSpec>;
+    plugins?: Record<string, { version: string; scope?: string; condition?: string }>;
   } | null;
   if (isUrl) {
     try {
@@ -143,10 +155,12 @@ async function main(): Promise<void> {
     decisions?: {
       skills?: Record<string, { install: boolean; reason?: string }>;
       profiles?: Record<string, { apply: boolean; reason?: string }>;
+      plugins?: Record<string, { install: boolean; reason?: string }>;
     };
-  }>(decisionsPath, { decisions: { skills: {}, profiles: {} } } as never);
+  }>(decisionsPath, { decisions: { skills: {}, profiles: {}, plugins: {} } } as never);
   const skillDecisions = decisions?.decisions?.skills ?? {};
   const profileDecisions = decisions?.decisions?.profiles ?? {};
+  const pluginDecisions = decisions?.decisions?.plugins ?? {};
 
   const [globalInstalled, localInstalled] = await Promise.all([
     getInstalledSkills(true),
@@ -158,6 +172,7 @@ async function main(): Promise<void> {
 
   const skills = manifest!.skills ?? {};
   const profiles = manifest!.profiles ?? {};
+  const manifestPlugins = manifest!.plugins ?? {};
 
   const { alreadyInstalled, toInstall, needsEvaluation, skippedByDecision } =
     classifySkills(skills, skillDecisions, globalInstalledSet, localInstalledSet, profiles, profileDecisions);
@@ -172,6 +187,31 @@ async function main(): Promise<void> {
     .filter((r) => r.result === "error")
     .map((r) => ({ name: r.name, source: r.source, message: r.error }));
 
+  // Plugin classification and installation
+  const installedPlugins = await getInstalledPlugins();
+  const classifiedPlugins = classifyPlugins(manifestPlugins, pluginDecisions, installedPlugins);
+
+  const pluginInstallResults = await Promise.all(
+    classifiedPlugins.toInstall.map(async (p) => {
+      const result = await installPlugin(p.name, p.scope);
+      return { ...p, result: result.ok ? "success" as const : "error" as const, error: result.error };
+    })
+  );
+
+  const pluginUpdateResults = await Promise.all(
+    classifiedPlugins.toUpdate.map(async (p) => {
+      const result = await installPlugin(p.name, p.scope);
+      return { ...p, result: result.ok ? "success" as const : "error" as const, error: result.error };
+    })
+  );
+
+  const pluginsInstalled = pluginInstallResults.filter((r) => r.result === "success");
+  const pluginsUpdated = pluginUpdateResults.filter((r) => r.result === "success");
+  const pluginErrors = [
+    ...pluginInstallResults.filter((r) => r.result === "error"),
+    ...pluginUpdateResults.filter((r) => r.result === "error"),
+  ].map((r) => ({ name: r.name, message: r.error }));
+
   process.stdout.write(
     JSON.stringify(
       {
@@ -179,7 +219,12 @@ async function main(): Promise<void> {
         already_installed: alreadyInstalled,
         needs_evaluation: needsEvaluation,
         skipped_by_decision: skippedByDecision,
-        errors,
+        errors: [...errors, ...pluginErrors],
+        plugins_installed: pluginsInstalled,
+        plugins_updated: pluginsUpdated,
+        plugins_already_installed: classifiedPlugins.alreadyInstalled,
+        plugins_needs_evaluation: classifiedPlugins.needsEvaluation,
+        plugins_skipped_by_decision: classifiedPlugins.skippedByDecision,
       },
       null,
       2

@@ -156,6 +156,74 @@ export type InstallGroup = {
   names: string[];
 };
 
+// ---------------------------------------------------------------------------
+// Plugin classification
+// ---------------------------------------------------------------------------
+
+export type PluginSpec = {
+  version: string;
+  scope?: string; // "user" | "project" | "local", default "user"
+  condition?: string;
+};
+
+export type PluginDecision = {
+  install: boolean;
+  reason?: string;
+};
+
+export type InstalledPluginInfo = {
+  version: string;
+};
+
+export type ClassifiedPlugins = {
+  alreadyInstalled: { name: string; version: string; scope: string }[];
+  toInstall: { name: string; version: string; scope: string }[];
+  toUpdate: { name: string; version: string; currentVersion: string; scope: string }[];
+  needsEvaluation: { name: string; version: string; condition: string }[];
+  skippedByDecision: { name: string; reason: string }[];
+};
+
+export function classifyPlugins(
+  plugins: Record<string, PluginSpec>,
+  pluginDecisions: Record<string, PluginDecision>,
+  installedPlugins: Record<string, InstalledPluginInfo>
+): ClassifiedPlugins {
+  const alreadyInstalled: ClassifiedPlugins["alreadyInstalled"] = [];
+  const toInstall: ClassifiedPlugins["toInstall"] = [];
+  const toUpdate: ClassifiedPlugins["toUpdate"] = [];
+  const needsEvaluation: ClassifiedPlugins["needsEvaluation"] = [];
+  const skippedByDecision: ClassifiedPlugins["skippedByDecision"] = [];
+
+  for (const [name, spec] of Object.entries(plugins)) {
+    const version = spec.version;
+    const scope = spec.scope ?? "user";
+    const condition = spec.condition ?? "always";
+    const decision = pluginDecisions[name];
+
+    if (decision && decision.install === false) {
+      skippedByDecision.push({ name, reason: decision.reason ?? "" });
+      continue;
+    }
+
+    const shouldInstall = (decision && decision.install === true) || condition === "always";
+
+    if (shouldInstall) {
+      const installed = installedPlugins[name];
+      if (!installed) {
+        toInstall.push({ name, version, scope });
+      } else if (installed.version !== version) {
+        toUpdate.push({ name, version, currentVersion: installed.version, scope });
+      } else {
+        alreadyInstalled.push({ name, version, scope });
+      }
+    } else {
+      needsEvaluation.push({ name, version, condition });
+    }
+  }
+
+  return { alreadyInstalled, toInstall, toUpdate, needsEvaluation, skippedByDecision };
+}
+
 export function groupBySource(toInstall: InstallItem[]): InstallGroup[] {
   const groupMap = new Map<string, InstallGroup>();
   for (const { name, source, scope } of toInstall) {
