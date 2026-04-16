@@ -81,6 +81,11 @@ async function installPlugin(name: string, scope: string): Promise<{ ok: boolean
   return result.ok ? { ok: true } : { ok: false, error: result.error };
 }
 
+async function updatePlugin(name: string, scope: string): Promise<{ ok: boolean; error?: string }> {
+  const result = await runCommand("claude", ["plugins", "update", name, "-s", scope]);
+  return result.ok ? { ok: true } : { ok: false, error: result.error };
+}
+
 async function getInstalledPlugins(): Promise<Record<string, { version: string }>> {
   const pluginsPath = join(homedir(), ".claude", "plugins", "installed_plugins.json");
   const data = await readJsonFile<Record<string, { version: string }>>(pluginsPath, {});
@@ -117,7 +122,7 @@ async function main(): Promise<void> {
   let manifest: {
     skills?: Record<string, { source: string; scope?: string; condition?: string }>;
     profiles?: Record<string, ProfileSpec>;
-    plugins?: Record<string, { version: string; scope?: string; condition?: string }>;
+    plugins?: Record<string, { version?: string; scope?: string; condition?: string }>;
   } | null;
   if (isUrl) {
     try {
@@ -200,7 +205,7 @@ async function main(): Promise<void> {
 
   const pluginUpdateResults = await Promise.all(
     classifiedPlugins.toUpdate.map(async (p) => {
-      const result = await installPlugin(p.name, p.scope);
+      const result = await updatePlugin(p.name, p.scope);
       return { ...p, result: result.ok ? "success" as const : "error" as const, error: result.error };
     })
   );

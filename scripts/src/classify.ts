@@ -161,7 +161,7 @@ export type InstallGroup = {
 // ---------------------------------------------------------------------------
 
 export type PluginSpec = {
-  version: string;
+  version?: string; // optional; undefined or "latest" = always track latest
   scope?: string; // "user" | "project" | "local", default "user"
   condition?: string;
 };
@@ -195,7 +195,7 @@ export function classifyPlugins(
   const skippedByDecision: ClassifiedPlugins["skippedByDecision"] = [];
 
   for (const [name, spec] of Object.entries(plugins)) {
-    const version = spec.version;
+    const version: string | undefined = spec.version;
     const scope = spec.scope ?? "user";
     const condition = spec.condition ?? "always";
     const decision = pluginDecisions[name];
@@ -209,15 +209,20 @@ export function classifyPlugins(
 
     if (shouldInstall) {
       const installed = installedPlugins[name];
+      const isLatest = version === undefined || version === "latest";
+      const manifestVersion = isLatest ? "latest" : version;
       if (!installed) {
-        toInstall.push({ name, version, scope });
+        toInstall.push({ name, version: manifestVersion, scope });
+      } else if (isLatest) {
+        // Always update when tracking latest
+        toUpdate.push({ name, version: "latest", currentVersion: installed.version, scope });
       } else if (installed.version !== version) {
-        toUpdate.push({ name, version, currentVersion: installed.version, scope });
+        toUpdate.push({ name, version: manifestVersion, currentVersion: installed.version, scope });
       } else {
-        alreadyInstalled.push({ name, version, scope });
+        alreadyInstalled.push({ name, version: manifestVersion, scope });
       }
     } else {
-      needsEvaluation.push({ name, version, condition });
+      needsEvaluation.push({ name, version: version ?? "latest", condition });
     }
   }
 

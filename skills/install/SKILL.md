@@ -71,6 +71,18 @@ HARNESS_MANIFEST_URL=https://raw.githubusercontent.com/owner/repo/main/manifest.
 - 評価結果が `install: true` のプラグインは `claude plugins install <name> -s <scope>` を実行
 - `install: false` のプラグインはスキップする
 
+#### プラグインのバージョン指定について
+
+| manifest の `version` 値 | 動作 |
+|--------------------------|------|
+| 省略（フィールドなし）   | 常に最新へ更新（`toUpdate` に分類、`claude plugins update` を使用） |
+| `"latest"`               | 常に最新へ更新（`toUpdate` に分類、`claude plugins update` を使用） |
+| 具体的なバージョン文字列 | インストール済みバージョンと一致 → `alreadyInstalled`、異なる → `toUpdate` |
+
+- 新規インストール（未インストール）は常に `claude plugins install <name> -s <scope>` を使用
+- 更新（インストール済み）は常に `claude plugins update <name> -s <scope>` を使用
+- 具体的なバージョンを指定した場合、`claude plugins update` は最新版をインストールするため、バージョンフィールドは「同期トリガー」として機能する（マニフェストのバージョンと異なる場合に更新を発動させる）
+
 ### 3. 判断記録の更新
 
 `.harness-decisions.json` にすべての判断結果を書き込む（スクリプト結果 + needs_evaluation の評価結果を統合）。
