@@ -15,19 +15,22 @@ description: "マニフェストを読み込み、プロジェクトに合致す
 
 **必ず最初にこのコマンドを実行すること。他の手順を先に行ってはならない。**
 
+スキルの呼び出し時に URL 引数が指定されているかどうかで、実行するコマンドが異なる。
+
+**URL 引数なし**（ローカルの `~/.config/harness/manifest.json` を使う）:
+
 ```bash
 curl -fsSL https://github.com/myuon/harness/releases/latest/download/harness-install.mjs | node --input-type=module
 ```
 
-リモートの manifest を使う場合は環境変数 `HARNESS_MANIFEST_URL` で URL を渡す:
+**URL 引数あり**（例: `/harness:install https://raw.githubusercontent.com/owner/repo/main/manifest.json`）:  
+引数の URL を `HARNESS_MANIFEST_URL` 環境変数として前置してコマンドを実行する:
 
 ```bash
 HARNESS_MANIFEST_URL=https://raw.githubusercontent.com/owner/repo/main/manifest.json curl -fsSL https://github.com/myuon/harness/releases/latest/download/harness-install.mjs | node --input-type=module
 ```
 
-例: `/harness:install https://raw.githubusercontent.com/owner/repo/main/manifest.json`
-
-- URL が指定された場合: `fetch()` でその URL から manifest JSON を取得して使う
+- URL が指定された場合: `HARNESS_MANIFEST_URL=<url>` を前置し、スクリプトがその URL から manifest JSON を取得して使う
 - URL が指定されない場合: ローカルの `~/.config/harness/manifest.json` を読む
 
 スクリプトが以下を自動で行い、結果を JSON で返す:
